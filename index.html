@@ -1564,19 +1564,32 @@ function tick() {
 
   missiles.forEach(m => {
     if (m.sam) {
-      // homing: target nearest player, but flares decoy
+      // FLARE DETONATION: if a flare gets within 20px, missile blows up on it (decoyed permanently)
+      let hitFlare = null;
+      for (const fl of flares) {
+        if (Math.hypot(fl.x-m.x, fl.y-m.y) < 22) { hitFlare = fl; break; }
+      }
+      if (hitFlare) {
+        explode(m.x, m.y, '#ff8', 16);
+        hitFlare.life = 0;
+        m.dead = true;
+        beep(180, 0.2, 'sawtooth', 0.06);
+        return;
+      }
+      // homing: target nearest player, lured by flares within 200px
       const tgtP = nearestPlayer(m.x, m.y);
       let tx = tgtP.x, ty = tgtP.y;
-      let closestFlare = null, closestD = 120;
+      let closestFlare = null, closestD = 200;
       flares.forEach(fl => {
         const fd = Math.hypot(fl.x-m.x, fl.y-m.y);
         if (fd < closestD) { closestD = fd; closestFlare = fl; }
       });
       if (closestFlare) { tx = closestFlare.x; ty = closestFlare.y; }
       const dx = tx - m.x, dy = ty - m.y, d = Math.hypot(dx,dy) || 1;
-      m.vx += (dx/d)*0.15; m.vy += (dy/d)*0.15;
+      // Slower turn rate — hard maneuvers can outrun them now
+      m.vx += (dx/d)*0.07; m.vy += (dy/d)*0.07;
       const sp = Math.hypot(m.vx, m.vy);
-      if (sp > 5) { m.vx = m.vx/sp*5; m.vy = m.vy/sp*5; }
+      if (sp > 4.5) { m.vx = m.vx/sp*4.5; m.vy = m.vy/sp*4.5; }
     }
     m.x += m.vx; m.y += m.vy; m.life--;
     // smoke trail
@@ -1788,6 +1801,44 @@ function tick() {
       pl.vapor = pl.vapor.filter(v => v.life > 0);
     }
     drawJet(pl.x, pl.y, pl.color, false, bank);
+
+    // MISSILE LOCK WARNING — red corner brackets + beep when a homing missile is tracking
+    let tracking = null, closestM = 9999;
+    for (const m of missiles) {
+      if (!m.sam) continue;
+      const d = Math.hypot(m.x-pl.x, m.y-pl.y);
+      if (d < 280 && d < closestM) { closestM = d; tracking = m; }
+    }
+    if (tracking) {
+      const t = Date.now() * 0.012;
+      const blink = (Math.sin(t)+1)*0.5;
+      ctx.strokeStyle = `rgba(255,${50*blink|0},${50*blink|0},${0.6+blink*0.4})`;
+      ctx.lineWidth = 2.5;
+      const br = 36, bl = 9;
+      // 4 corner L-brackets
+      ctx.beginPath();
+      ctx.moveTo(pl.x-br, pl.y-br+bl); ctx.lineTo(pl.x-br, pl.y-br); ctx.lineTo(pl.x-br+bl, pl.y-br);
+      ctx.moveTo(pl.x+br, pl.y-br+bl); ctx.lineTo(pl.x+br, pl.y-br); ctx.lineTo(pl.x+br-bl, pl.y-br);
+      ctx.moveTo(pl.x-br, pl.y+br-bl); ctx.lineTo(pl.x-br, pl.y+br); ctx.lineTo(pl.x-br+bl, pl.y+br);
+      ctx.moveTo(pl.x+br, pl.y+br-bl); ctx.lineTo(pl.x+br, pl.y+br); ctx.lineTo(pl.x+br-bl, pl.y+br);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      // distance + warning text
+      ctx.fillStyle = `rgba(255,80,80,${0.7+blink*0.3})`;
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText('★ MISSILE LOCK ★', pl.x-46, pl.y-br-6);
+      ctx.fillText(Math.floor(closestM)+'m', pl.x+br+4, pl.y);
+      // line from player to missile (so you can see WHERE it is)
+      ctx.strokeStyle = `rgba(255,60,60,${0.3+blink*0.3})`;
+      ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.moveTo(pl.x, pl.y); ctx.lineTo(tracking.x, tracking.y); ctx.stroke();
+      ctx.setLineDash([]);
+      // warning beep (throttled)
+      if (Date.now() - (pl._lastLockBeep||0) > 400) {
+        beep(900, 0.06, 'square', 0.04);
+        pl._lastLockBeep = Date.now();
+      }
+    }
   });
 
   particles.forEach(p => {
