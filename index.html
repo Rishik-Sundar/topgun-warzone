@@ -102,8 +102,42 @@
 </div>
 <div id="callout"></div>
 <div id="msg"></div>
-<div id="practice">★ TOP GUN: HARD DECK TRAINING ★<br><span style="font-size:18px">PRACTICE MODE — KEEP IT ABOVE THE DECK, MAVERICK</span></div>
-<div id="ctrl">P1: WASD move &nbsp; SPACE shoot &nbsp; X bomb &nbsp; F flare &nbsp;|&nbsp; P2: IJKL move &nbsp; ENTER shoot &nbsp; B bomb &nbsp; G flare &nbsp;|&nbsp; V camera &nbsp; R restart</div>
+<div id="practice">★ TOP GUN: WAR ZONE ★<br><span style="font-size:20px">WASD = fly &nbsp; SPACE = shoot &nbsp; X = bomb &nbsp; F = flare<br><span style="color:#ff0;font-size:22px">PRESS H ANYTIME FOR CONTROLS</span></span></div>
+<div id="ctrl">Press <b style="color:#ff0">H</b> for controls &nbsp;|&nbsp; <b>V</b> camera (incl. P2 view) &nbsp; <b>R</b> restart &nbsp; <b>M</b> menu</div>
+<div id="helpOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);color:#fff;z-index:200;padding:40px;font-family:'Courier New',monospace;overflow-y:auto;">
+  <h1 style="text-align:center;color:#ff0;letter-spacing:6px;margin:0 0 20px;text-shadow:3px 3px 0 #c00">★ CONTROLS ★</h1>
+  <div style="display:flex;gap:30px;justify-content:center;flex-wrap:wrap;max-width:1000px;margin:0 auto;">
+    <div style="background:#1a2a3a;padding:20px;border:2px solid #9df;border-radius:8px;min-width:300px;">
+      <h2 style="color:#9df;margin:0 0 12px">PLAYER 1 (white jet)</h2>
+      <div style="font-size:18px;line-height:1.8;">
+        <b style="color:#ff0">W A S D</b> — fly up/down/left/right<br>
+        <b style="color:#ff0">SPACE</b> or <b style="color:#ff0">Z</b> — shoot guns<br>
+        <b style="color:#ff0">X</b> — drop bomb 💣<br>
+        <b style="color:#ff0">F</b> — release flares 🔥 (decoy missiles)
+      </div>
+    </div>
+    <div style="background:#1a2a3a;padding:20px;border:2px solid #fc8;border-radius:8px;min-width:300px;">
+      <h2 style="color:#fc8;margin:0 0 12px">PLAYER 2 (blue jet)</h2>
+      <div style="font-size:18px;line-height:1.8;">
+        <b style="color:#ff0">I J K L</b> — fly up/left/down/right<br>
+        <b style="color:#ff0">ENTER</b> — shoot guns<br>
+        <b style="color:#ff0">B</b> — drop bomb 💣<br>
+        <b style="color:#ff0">G</b> — release flares 🔥
+      </div>
+      <div style="margin-top:10px;font-size:13px;color:#9cf">In ONLINE mode, P2 uses WASD/SPACE/X/F (same as P1)</div>
+    </div>
+    <div style="background:#1a2a3a;padding:20px;border:2px solid #ff0;border-radius:8px;min-width:300px;">
+      <h2 style="color:#ff0;margin:0 0 12px">GLOBAL</h2>
+      <div style="font-size:18px;line-height:1.8;">
+        <b style="color:#ff0">V</b> — cycle camera (P1 Chase / Wide / P1 Cockpit / P2 Chase)<br>
+        <b style="color:#ff0">H</b> — show/hide this help<br>
+        <b style="color:#ff0">R</b> — restart after game over<br>
+        <b style="color:#ff0">M</b> — return to menu
+      </div>
+    </div>
+  </div>
+  <div style="text-align:center;margin-top:24px;color:#9cf;font-size:14px">Press <b style="color:#ff0">H</b> again to close</div>
+</div>
 <canvas id="c" width="960" height="600"></canvas>
 <script>
 const cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -137,9 +171,10 @@ let zoneIdx = 0, scrollX = 0;
 
 let player, player2, players, bullets, enemies, missiles, clouds, particles, powerups, boss, bases, flak, bombs, flares;
 let score, kills, level, gameOver, spawnT, bossT, shake;
-let camMode = 0; // 0 chase, 1 wide, 2 close
-const CAM_NAMES = ['CHASE', 'WIDE', 'COCKPIT'];
-const CAM_ZOOM = [1.0, 0.7, 1.5];
+let camMode = 0; // 0 chase P1, 1 wide, 2 cockpit P1, 3 chase P2
+const CAM_NAMES = ['P1 CHASE', 'WIDE', 'P1 COCKPIT', 'P2 CHASE'];
+const CAM_ZOOM = [1.0, 0.7, 1.5, 1.0];
+const CAM_TGT = [1, 0, 1, 2]; // 0=center, 1=player, 2=player2
 let camKeyHeld = false;
 
 const CALLOUTS = [
@@ -201,8 +236,8 @@ function reset() {
   const prac = document.getElementById('practice');
   prac.classList.remove('fade');
   prac.style.display = 'block';
-  setTimeout(() => prac.classList.add('fade'), 100);
-  setTimeout(() => { prac.style.display = 'none'; }, 3500);
+  setTimeout(() => prac.classList.add('fade'), 4500);
+  setTimeout(() => { prac.style.display = 'none'; }, 7000);
 }
 
 function drawJet(x, y, color, flip, banking, isPlayer) {
@@ -882,12 +917,13 @@ function tick() {
   drawBackground();
 
   ctx.save();
-  // camera zoom around player position
+  // camera zoom + which player to follow
   const zoom = CAM_ZOOM[camMode];
+  const camTgt = CAM_TGT[camMode] === 2 && !player2.dead ? player2 : player;
   if (zoom !== 1) {
-    ctx.translate(player.x, H/2);
+    ctx.translate(camTgt.x, H/2);
     ctx.scale(zoom, zoom);
-    ctx.translate(-player.x, -H/2);
+    ctx.translate(-camTgt.x, -H/2);
   }
   if (shake > 0) {
     ctx.translate((Math.random()-0.5)*shake, (Math.random()-0.5)*shake);
@@ -992,18 +1028,29 @@ function tick() {
       bombs.push({ x: pl.x, y: pl.y+10, vx: 4+pl.vx, vy: 1 });
       pl.bombs--;
       pl.bombCool = 25;
+      callout("P"+pl.id+" BOMBS AWAY!  ("+pl.bombs+" left)", '#fa0');
       beep(300, 0.15, 'triangle', 0.05);
+    } else if (inp.bomb && pl.bombCool <= 0 && pl.bombs <= 0) {
+      callout("P"+pl.id+" — NO BOMBS LEFT!", '#f44');
+      pl.bombCool = 60;
     }
     if (inp.flare && pl.flareCool <= 0 && pl.flares > 0) {
-      for (let i = 0; i < 8; i++) {
-        const a = (i/8)*Math.PI*2;
-        flares.push({ x: pl.x, y: pl.y, vx: Math.cos(a)*2.5-1.5, vy: Math.sin(a)*2.5, life: 70 });
+      // bigger spread, more flares, longer life — make them OBVIOUS
+      for (let i = 0; i < 12; i++) {
+        const a = (i/12)*Math.PI*2;
+        flares.push({ x: pl.x, y: pl.y, vx: Math.cos(a)*3.5-1.5, vy: Math.sin(a)*3.5, life: 100 });
+      }
+      // big bright flash particles
+      for (let i = 0; i < 20; i++) {
+        const a = Math.random()*Math.PI*2, sp = 2+Math.random()*4;
+        particles.push({ x:pl.x, y:pl.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:30, color:'rgba(255,220,80,1)' });
       }
       missiles.forEach(m => { if (Math.hypot(m.x-pl.x, m.y-pl.y) < 180) { m.vx = -Math.abs(m.vx)-1; m.vy += (Math.random()-0.5)*2; m.sam = false; } });
       pl.flares--;
       pl.flareCool = 30;
-      callout("P"+pl.id+" FLARES!", '#ff8');
+      callout("P"+pl.id+" FLARES!  ("+pl.flares+" left)", '#ff8');
       beep(700, 0.3, 'sawtooth', 0.07);
+      shake = Math.max(shake, 4);
     }
     if (pl.rapid > 0) pl.rapid--;
     if (pl.shield > 0) pl.shield--;
@@ -1117,10 +1164,29 @@ function tick() {
   });
 
   bombs.forEach(bo => {
-    bo.vy += 0.18; bo.x += bo.vx; bo.y += bo.vy;
-    ctx.fillStyle = '#222';
-    ctx.beginPath(); ctx.ellipse(bo.x, bo.y, 4, 7, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = '#888'; ctx.fillRect(bo.x-3, bo.y+5, 6, 3);
+    bo.vy += 0.14; bo.x += bo.vx; bo.y += bo.vy;
+    // smoke trail so the bomb is OBVIOUS
+    if (Math.random() < 0.7) particles.push({ x:bo.x, y:bo.y, vx:(Math.random()-0.5)*0.4, vy:-0.2, life:25, color:'rgba(200,200,210,1)' });
+    // bigger, more visible bomb sprite with red tip
+    ctx.save();
+    ctx.translate(bo.x, bo.y);
+    ctx.rotate(Math.atan2(bo.vy, bo.vx));
+    // body
+    ctx.fillStyle = '#1a1a1a';
+    ctx.beginPath(); ctx.ellipse(0, 0, 11, 4.5, 0, 0, 7); ctx.fill();
+    // red nose tip
+    ctx.fillStyle = '#d22';
+    ctx.beginPath(); ctx.ellipse(8, 0, 3.5, 3, 0, 0, 7); ctx.fill();
+    // yellow stripe
+    ctx.fillStyle = '#ff0';
+    ctx.fillRect(-2, -4.5, 3, 9);
+    // fins
+    ctx.fillStyle = '#444';
+    ctx.beginPath();
+    ctx.moveTo(-10, -3); ctx.lineTo(-14, -6); ctx.lineTo(-9, -3); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-10, 3); ctx.lineTo(-14, 6); ctx.lineTo(-9, 3); ctx.closePath(); ctx.fill();
+    ctx.restore();
     if (bo.y > H-55) {
       explode(bo.x, H-50, '#fa0', 30);
       shake = 12;
@@ -1416,8 +1482,13 @@ function tick() {
 }
 
 addEventListener('keydown', e => {
-  if (e.key.toLowerCase() === 'r' && gameOver) reset();
-  if (e.key.toLowerCase() === 'm' && gameOver) showMenu();
+  const k = e.key.toLowerCase();
+  if (k === 'r' && gameOver) reset();
+  if (k === 'm' && gameOver) showMenu();
+  if (k === 'h') {
+    const ov = document.getElementById('helpOverlay');
+    ov.style.display = ov.style.display === 'none' ? 'block' : 'none';
+  }
 });
 
 // ---- WEEKLY HIGHSCORE ----
