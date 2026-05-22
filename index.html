@@ -128,7 +128,7 @@
 </div>
 <div id="callout"></div>
 <div id="msg"></div>
-<div id="practice">★ TOP GUN: WAR ZONE ★<br><span style="font-size:20px">WASD = fly &nbsp; SPACE = shoot &nbsp; X = bomb &nbsp; F = flare<br><span style="color:#ff0;font-size:22px">PRESS H ANYTIME FOR CONTROLS</span></span></div>
+<div id="practice">★ TOP GUN: WAR ZONE ★<br><span style="font-size:20px">WASD = fly &nbsp; SPACE = shoot &nbsp; C = bomb &nbsp; F = flare<br><span style="color:#ff0;font-size:22px">PRESS H ANYTIME FOR CONTROLS</span></span></div>
 <div id="ctrl">Press <b style="color:#ff0">H</b> for controls &nbsp;|&nbsp; <b>V</b> camera (incl. P2 view) &nbsp; <b>R</b> restart &nbsp; <b>M</b> menu</div>
 <div id="helpOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);color:#fff;z-index:200;padding:40px;font-family:'Courier New',monospace;overflow-y:auto;">
   <h1 style="text-align:center;color:#ff0;letter-spacing:6px;margin:0 0 20px;text-shadow:3px 3px 0 #c00">★ CONTROLS ★</h1>
@@ -138,7 +138,7 @@
       <div style="font-size:18px;line-height:1.8;">
         <b style="color:#ff0">W A S D</b> — fly up/down/left/right<br>
         <b style="color:#ff0">SPACE</b> or <b style="color:#ff0">Z</b> — shoot guns<br>
-        <b style="color:#ff0">X</b> — drop bomb 💣<br>
+        <b style="color:#ff0">C</b> — drop bomb 💣<br>
         <b style="color:#ff0">F</b> — release flares 🔥 (decoy missiles)
       </div>
     </div>
@@ -245,7 +245,7 @@ function isOnline(){ return netRole === 'host' || netRole === 'guest'; }
 function reset() {
   const hp = DIFF[settings.diff||'medium'].hp;
   player = { id:1, x: 180, y: 260, vy: 0, vx: 0, hp: hp, maxHp:hp, cool: 0, rapid: 0, shield: 0, bombs: 5, bombCool: 0, flares: 500, flareCool: 0, facing:1, color:'#dde', accent:'#9df', dead:false,
-    keys:{up:'w',down:'s',left:'a',right:'d',fire:[' ','z'],bomb:'x',flare:'f'} };
+    keys:{up:'w',down:'s',left:'a',right:'d',fire:[' ','z'],bomb:'c',flare:'f'} };
   player2 = { id:2, x: 180, y: 360, vy: 0, vx: 0, hp: hp, maxHp:hp, cool: 0, rapid: 0, shield: 0, bombs: 5, bombCool: 0, flares: 500, flareCool: 0, facing:1, color:'#5af', accent:'#ff4', dead:false,
     keys:{up:'i',down:'k',left:'j',right:'l',fire:['enter'],bomb:'b',flare:'g'} };
   players = settings.mode === 'solo' ? [player] : [player, player2];
@@ -516,10 +516,10 @@ function drawJet(x, y, color, flip, banking, isPlayer) {
 }
 
 // Enemy MiG-style fighter — delta wings, single tail, red/grey camo
-function drawMiG(x, y, isBomber) {
+function drawMiG(x, y, isBomber, faceRight) {
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(-1, 1); // face left (incoming)
+  if (!faceRight) ctx.scale(-1, 1); // default faces left (incoming); faceRight=true means coming from behind
 
   // soft shadow
   ctx.save(); ctx.filter = 'blur(2px)';
@@ -1487,27 +1487,47 @@ function tick() {
       for (let i = 0; i < wave; i++) {
         const r = Math.random();
         let e;
-        if (r < 0.65) e = { type:'fighter', x:W+30+i*40, y:60+Math.random()*(H-200), hp:1+Math.floor(level/3), cool:30+Math.random()*60, speed:(2.5+level*0.2)*dm.sp };
-        else if (r < 0.85) e = { type:'bomber', x:W+30+i*40, y:80+Math.random()*200, hp:3+Math.floor(level/2), cool:50, speed:1.5*dm.sp };
-        else e = { type:'heli', x:W+30, y:H-130-Math.random()*100, hp:2, cool:40, speed:1.8*dm.sp };
+        if (r < 0.55) e = { type:'fighter', x:W+30+i*40, y:60+Math.random()*(H-200), hp:1+Math.floor(level/3), cool:30+Math.random()*60, speed:(2.5+level*0.2)*dm.sp };
+        else if (r < 0.75) e = { type:'bomber', x:W+30+i*40, y:80+Math.random()*200, hp:3+Math.floor(level/2), cool:50, speed:1.5*dm.sp };
+        else if (r < 0.88) e = { type:'heli', x:W+30, y:H-130-Math.random()*100, hp:2, cool:40, speed:1.8*dm.sp };
+        else {
+          // TAIL CHASER — spawns BEHIND the player on the left, pursues from the rear
+          // These fire missiles from behind, which is exactly what flares are designed to defeat
+          e = { type:'tail', x:-40-i*40, y:60+Math.random()*(H-200), hp:2+Math.floor(level/3), cool:60+Math.random()*40, speed:(2.0+level*0.15)*dm.sp, fromRear:true };
+        }
         enemies.push(e);
       }
     }
   }
 
   enemies.forEach(e => {
-    e.x -= e.speed;
-    if (e.type === 'fighter') e.y += Math.sin(e.x*0.02) * 1.8;
-    if (e.type === 'heli') e.y += Math.sin(e.x*0.05) * 0.8;
+    if (e.type === 'tail') {
+      // tail chaser: comes from left, hunts player from behind
+      e.x += e.speed; // moves RIGHT (toward player)
+      e.y += Math.sin(e.x*0.02) * 1.2;
+    } else {
+      e.x -= e.speed;
+      if (e.type === 'fighter') e.y += Math.sin(e.x*0.02) * 1.8;
+      if (e.type === 'heli') e.y += Math.sin(e.x*0.05) * 0.8;
+    }
     e.cool--;
-    if (e.cool <= 0 && e.x < W) {
-      e.cool = e.type === 'bomber' ? 60 : 80;
+    if (e.cool <= 0 && ((e.type === 'tail' && e.x > -20 && e.x < W-100) || (e.type !== 'tail' && e.x < W))) {
       const tgt = nearestPlayer(e.x, e.y);
-      const dx = tgt.x - e.x, dy = tgt.y - e.y, d = Math.hypot(dx,dy) || 1;
-      const sp = e.type === 'bomber' ? 4 : 5;
-      missiles.push({ x: e.x-20, y: e.y, vx: dx/d*sp, vy: dy/d*sp, life: 140 });
+      if (e.type === 'tail') {
+        // Tail chaser fires HOMING missile from behind — this is what flares are for
+        e.cool = 90 + Math.random()*40;
+        const dx = tgt.x - e.x, dy = tgt.y - e.y, d = Math.hypot(dx,dy) || 1;
+        missiles.push({ x: e.x+20, y: e.y, vx: dx/d*3.5, vy: dy/d*3.5, life: 200, sam: true });
+        beep(140, 0.25, 'sawtooth', 0.06);
+      } else {
+        e.cool = e.type === 'bomber' ? 60 : 80;
+        const dx = tgt.x - e.x, dy = tgt.y - e.y, d = Math.hypot(dx,dy) || 1;
+        const sp = e.type === 'bomber' ? 4 : 5;
+        missiles.push({ x: e.x-20, y: e.y, vx: dx/d*sp, vy: dy/d*sp, life: 140 });
+      }
     }
     if (e.type === 'heli') drawHeli(e.x, e.y);
+    else if (e.type === 'tail') drawMiG(e.x, e.y, false, true); // facing right (chaser)
     else drawMiG(e.x, e.y, e.type === 'bomber');
   });
 
@@ -1879,7 +1899,7 @@ function tick() {
   ctx.globalAlpha = 1;
 
   bullets = bullets.filter(b => !b.dead && b.x < W+50 && b.x > -50);
-  enemies = enemies.filter(e => !e.dead && e.x > -60);
+  enemies = enemies.filter(e => !e.dead && e.x > -60 && e.x < W+60);
   missiles = missiles.filter(m => !m.dead && m.life > 0 && m.x > -50 && m.x < W+50 && m.y > -50 && m.y < H+50);
   flak = flak.filter(f => !f.dead && f.life > 0);
   bombs = bombs.filter(b => !b.dead);
