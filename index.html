@@ -244,9 +244,9 @@ function isOnline(){ return netRole === 'host' || netRole === 'guest'; }
 
 function reset() {
   const hp = DIFF[settings.diff||'medium'].hp;
-  player = { id:1, x: 180, y: 260, vy: 0, vx: 0, hp: hp, maxHp:hp, cool: 0, rapid: 0, shield: 0, bombs: 5, bombCool: 0, flares: 3, flareCool: 0, facing:1, color:'#dde', accent:'#9df', dead:false,
+  player = { id:1, x: 180, y: 260, vy: 0, vx: 0, hp: hp, maxHp:hp, cool: 0, rapid: 0, shield: 0, bombs: 5, bombCool: 0, flares: 500, flareCool: 0, facing:1, color:'#dde', accent:'#9df', dead:false,
     keys:{up:'w',down:'s',left:'a',right:'d',fire:[' ','z'],bomb:'x',flare:'f'} };
-  player2 = { id:2, x: 180, y: 360, vy: 0, vx: 0, hp: hp, maxHp:hp, cool: 0, rapid: 0, shield: 0, bombs: 5, bombCool: 0, flares: 3, flareCool: 0, facing:1, color:'#5af', accent:'#ff4', dead:false,
+  player2 = { id:2, x: 180, y: 360, vy: 0, vx: 0, hp: hp, maxHp:hp, cool: 0, rapid: 0, shield: 0, bombs: 5, bombCool: 0, flares: 500, flareCool: 0, facing:1, color:'#5af', accent:'#ff4', dead:false,
     keys:{up:'i',down:'k',left:'j',right:'l',fire:['enter'],bomb:'b',flare:'g'} };
   players = settings.mode === 'solo' ? [player] : [player, player2];
   if (settings.mode === 'solo') player2.dead = true;
@@ -937,15 +937,134 @@ function drawBackground() {
       ctx.ellipse(px+1, H-82, 3, 7, 0, 0, 7); ctx.fill();
     }
   }
-  // pacific ships
+  // pacific ships — full aircraft carrier with flight deck, island, planes, wake
   if (z.name === 'PACIFIC') {
-    for (let i = 0; i < 3; i++) {
-      const sx = (((i*350+100) - scrollX*0.4) % (W+700) + W+700) % (W+700) - 350;
-      ctx.fillStyle = '#333';
-      ctx.fillRect(sx-30, H-40, 60, 8);
-      ctx.beginPath(); ctx.moveTo(sx-30, H-40); ctx.lineTo(sx-38, H-32); ctx.lineTo(sx+38, H-32); ctx.lineTo(sx+30, H-40); ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#555'; ctx.fillRect(sx-8, H-50, 16, 10);
-      ctx.fillStyle = '#a88'; ctx.fillRect(sx-1, H-58, 2, 8);
+    for (let i = 0; i < 2; i++) {
+      const sx = (((i*620+200) - scrollX*0.4) % (W+1240) + W+1240) % (W+1240) - 620;
+      const dy = H - 38; // deck waterline
+      // === wake foam trailing behind ship (V-shaped) ===
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      for (let w = 0; w < 14; w++) {
+        const wx = sx - 90 - w*16;
+        const wo = w*1.2;
+        ctx.fillRect(wx, dy+8-wo, 14-w*0.5, 1.5);
+        ctx.fillRect(wx, dy+8+wo, 14-w*0.5, 1.5);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath();
+      ctx.ellipse(sx-72, dy+8, 14, 4, 0, 0, 7); ctx.fill();
+      // === hull (dark grey with waterline shadow) ===
+      const hg = ctx.createLinearGradient(0, dy, 0, dy+18);
+      hg.addColorStop(0, '#4a5560'); hg.addColorStop(0.5, '#2a3038'); hg.addColorStop(1, '#15181c');
+      ctx.fillStyle = hg;
+      ctx.beginPath();
+      ctx.moveTo(sx-95, dy+2);
+      ctx.lineTo(sx-100, dy+8);
+      ctx.lineTo(sx-95, dy+18);
+      ctx.lineTo(sx+90, dy+18);
+      ctx.lineTo(sx+100, dy+10);
+      ctx.lineTo(sx+95, dy+2);
+      ctx.closePath(); ctx.fill();
+      // hull waterline white stripe
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillRect(sx-95, dy+16, 190, 1);
+      // === flight deck (angled, asymmetric — like real Nimitz class) ===
+      const dg = ctx.createLinearGradient(0, dy-2, 0, dy+4);
+      dg.addColorStop(0, '#3a3a3a'); dg.addColorStop(1, '#1a1a1a');
+      ctx.fillStyle = dg;
+      // main deck (long rectangle)
+      ctx.fillRect(sx-95, dy-2, 190, 6);
+      // angled deck extension (port side, slightly offset)
+      ctx.beginPath();
+      ctx.moveTo(sx-95, dy+4);
+      ctx.lineTo(sx-50, dy+4);
+      ctx.lineTo(sx-40, dy+8);
+      ctx.lineTo(sx-95, dy+8);
+      ctx.closePath(); ctx.fill();
+      // bow ramp/sponson
+      ctx.beginPath();
+      ctx.moveTo(sx+95, dy-2); ctx.lineTo(sx+105, dy+1); ctx.lineTo(sx+95, dy+4);
+      ctx.closePath(); ctx.fill();
+      // === runway markings (yellow centerline + numbers) ===
+      ctx.fillStyle = '#ffd040';
+      // centerline dashed
+      for (let d = 0; d < 20; d++) {
+        ctx.fillRect(sx-85+d*9, dy, 5, 0.6);
+      }
+      // landing chevrons at stern
+      for (let c = 0; c < 4; c++) {
+        ctx.fillRect(sx-92+c*4, dy+5+c*0.4, 3, 0.5);
+      }
+      // hull number (e.g., 72)
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 4px monospace';
+      ctx.fillText('72', sx+80, dy+1.5);
+      // === island superstructure (starboard side) ===
+      // main island block
+      ctx.fillStyle = '#3a3a42';
+      ctx.fillRect(sx+15, dy-14, 22, 12);
+      // bridge windows
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(sx+18, dy-12, 16, 2.5);
+      ctx.fillStyle = 'rgba(180,210,235,0.7)';
+      for (let w = 0; w < 6; w++) {
+        ctx.fillRect(sx+19+w*2.5, dy-11.5, 1.8, 1.5);
+      }
+      // island roof darker
+      ctx.fillStyle = '#2a2a32';
+      ctx.fillRect(sx+15, dy-15, 22, 1.5);
+      // === radar mast + antennas on top of island ===
+      ctx.fillStyle = '#222';
+      ctx.fillRect(sx+24, dy-22, 1.5, 7); // mast
+      ctx.fillRect(sx+30, dy-19, 1.5, 4); // second mast
+      // spinning radar dish (animated)
+      const radarT = Math.sin(Date.now()*0.003);
+      ctx.fillStyle = '#888';
+      ctx.fillRect(sx+22, dy-23.5, 5 + radarT*1.5, 1);
+      ctx.fillStyle = '#aaa';
+      ctx.fillRect(sx+29, dy-20.5, 4, 0.8);
+      // navigation light (blinking red)
+      if (Date.now() % 1200 < 600) {
+        ctx.fillStyle = '#f44';
+        ctx.fillRect(sx+25, dy-23, 1, 1);
+      }
+      // === parked aircraft on deck (tiny silhouettes) ===
+      const planes = [
+        {x:sx-70, y:dy-1, angle:0.3},
+        {x:sx-50, y:dy-1.5, angle:0},
+        {x:sx-25, y:dy-1, angle:-0.3},
+        {x:sx+50, y:dy-1.5, angle:1.5},
+        {x:sx+65, y:dy-1, angle:1.8},
+      ];
+      for (const pl of planes) {
+        ctx.save();
+        ctx.translate(pl.x, pl.y); ctx.rotate(pl.angle);
+        ctx.fillStyle = '#5a6a78';
+        // body
+        ctx.fillRect(-3, -0.6, 6, 1.2);
+        // wings (swept)
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(-2, -2.5); ctx.lineTo(1, -0.5);
+        ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(-2, 2.5); ctx.lineTo(1, 0.5);
+        ctx.closePath(); ctx.fill();
+        // canopy
+        ctx.fillStyle = '#9cf';
+        ctx.fillRect(0.5, -0.4, 1.2, 0.8);
+        ctx.restore();
+      }
+      // === catapult tracks (two parallel lines on bow) ===
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 0.4;
+      ctx.beginPath(); ctx.moveTo(sx+5, dy+1); ctx.lineTo(sx+90, dy+0.5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx+5, dy+2.5); ctx.lineTo(sx+90, dy+2); ctx.stroke();
+      ctx.lineWidth = 1;
+      // === deck edge lights (small yellow dots along sides) ===
+      ctx.fillStyle = '#ff8';
+      for (let l = 0; l < 8; l++) {
+        ctx.fillRect(sx-88+l*22, dy-2.5, 0.8, 0.8);
+        ctx.fillRect(sx-88+l*22, dy+4.5, 0.8, 0.8);
+      }
     }
   }
   // volcano: erupting cones
@@ -1222,13 +1341,21 @@ function tick() {
     };
     if (inp.up) pl.vy -= 0.55;
     if (inp.down) pl.vy += 0.55;
-    if (inp.right) pl.vx = Math.min(3, pl.vx + 0.1);
-    else if (inp.left) pl.vx = Math.max(isVersus()?-3:-1.5, pl.vx - 0.1);
+    if (inp.right) pl.vx = Math.min(4, pl.vx + 0.15);
+    else if (inp.left) pl.vx = Math.max(isVersus()?-4:-2.5, pl.vx - 0.15);
     else pl.vx *= 0.95;
     pl.vy *= 0.9;
     pl.y += pl.vy;
     pl.y = Math.max(30, Math.min(H-70, pl.y));
-    if (isVersus()) { pl.x += pl.vx*0.5; pl.x = Math.max(40, Math.min(W-40, pl.x)); }
+    // Player CAN move forward/back on screen (was locked before — couldn't dodge)
+    if (isVersus()) {
+      pl.x += pl.vx*0.5;
+      pl.x = Math.max(40, Math.min(W-40, pl.x));
+    } else {
+      // Forward movement: world scrolls AND player slides on screen (within bounds)
+      pl.x += pl.vx * 0.6;
+      pl.x = Math.max(60, Math.min(W-100, pl.x));
+    }
 
     if (inp.fire && pl.cool <= 0) {
       const face = pl.facing || 1;
@@ -1254,23 +1381,37 @@ function tick() {
       callout("P"+pl.id+" — NO BOMBS LEFT!", '#f44');
       pl.bombCool = 60;
     }
+    // Movie-style flares: hold F to release a continuous stream of individual flares
     if (inp.flare && pl.flareCool <= 0 && pl.flares > 0) {
-      // bigger spread, more flares, longer life — make them OBVIOUS
-      for (let i = 0; i < 12; i++) {
-        const a = (i/12)*Math.PI*2;
-        flares.push({ x: pl.x, y: pl.y, vx: Math.cos(a)*3.5-1.5, vy: Math.sin(a)*3.5, life: 100 });
+      // Eject a single flare with slight downward+rearward spread (like real ALE-39 dispenser)
+      const side = (Math.random() < 0.5) ? -1 : 1;
+      const spread = (Math.random()-0.5)*0.6;
+      flares.push({
+        x: pl.x - 6, y: pl.y + side*3,
+        vx: -2.5 - Math.random()*1.5 + (pl.vx||0)*0.3,
+        vy: side*1.5 + spread + (pl.vy||0)*0.3,
+        life: 90 + Math.random()*30
+      });
+      // small burn spark
+      particles.push({ x:pl.x-6, y:pl.y+side*3, vx:-1+Math.random()*0.5, vy:side*0.5+(Math.random()-0.5), life:15, color:'rgba(255,220,80,1)' });
+      // first flare in a burst: do the missile/bullet decoy sweep
+      if (pl.flares % 8 === 0) {
+        missiles.forEach(m => { if (Math.hypot(m.x-pl.x, m.y-pl.y) < 180) { m.vx = -Math.abs(m.vx)-1; m.vy += (Math.random()-0.5)*2; m.sam = false; } });
+        bullets.forEach(b => { if (b.owner !== pl.id && Math.hypot(b.x-pl.x, b.y-pl.y) < 80) { b.dead = true; explode(b.x, b.y, '#ff8', 3); } });
+        flak.forEach(f => { if (Math.hypot(f.x-pl.x, f.y-pl.y) < 80) { f.dead = true; explode(f.x, f.y, '#ff8', 2); } });
       }
-      // big bright flash particles
-      for (let i = 0; i < 20; i++) {
-        const a = Math.random()*Math.PI*2, sp = 2+Math.random()*4;
-        particles.push({ x:pl.x, y:pl.y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:30, color:'rgba(255,220,80,1)' });
-      }
-      missiles.forEach(m => { if (Math.hypot(m.x-pl.x, m.y-pl.y) < 180) { m.vx = -Math.abs(m.vx)-1; m.vy += (Math.random()-0.5)*2; m.sam = false; } });
       pl.flares--;
-      pl.flareCool = 30;
-      callout("P"+pl.id+" FLARES!  ("+pl.flares+" left)", '#ff8');
-      beep(700, 0.3, 'sawtooth', 0.07);
-      shake = Math.max(shake, 4);
+      pl.flareCool = 3; // very short cooldown — hold F = continuous stream
+      // only beep + callout occasionally so it's not annoying
+      if (pl.flares % 25 === 0) {
+        beep(700 + Math.random()*100, 0.05, 'sawtooth', 0.03);
+      }
+      if (pl.flares === 100 || pl.flares === 50 || pl.flares === 20 || pl.flares === 0) {
+        callout("P"+pl.id+" FLARES: "+pl.flares, pl.flares===0?'#f44':'#ff8');
+      }
+    } else if (inp.flare && pl.flareCool <= 0 && pl.flares <= 0) {
+      callout("P"+pl.id+" — OUT OF FLARES!", '#f44');
+      pl.flareCool = 60;
     }
     if (pl.rapid > 0) pl.rapid--;
     if (pl.shield > 0) pl.shield--;
@@ -1469,6 +1610,13 @@ function tick() {
     ctx.fillRect(fl.x-1, fl.y-1, 2, 2);
     // burn smoke
     if (Math.random() < 0.5) particles.push({ x:fl.x, y:fl.y, vx:(Math.random()-0.5)*0.4, vy:0.5+Math.random()*0.5, life:20, color:'rgba(200,200,200,1)' });
+    // burning flares destroy bullets they touch (any owner — they're hot enough to cook off rounds)
+    bullets.forEach(b => {
+      if (Math.hypot(b.x-fl.x, b.y-fl.y) < 14) {
+        b.dead = true;
+        explode(b.x, b.y, '#ff8', 3);
+      }
+    });
   });
 
   flak.forEach(f => {
