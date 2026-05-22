@@ -1904,8 +1904,12 @@ function tick() {
 
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  if (k === 'r' && gameOver) reset();
-  if (k === 'm' && gameOver) showMenu();
+  // Don't intercept keys while typing in the join-code input
+  if (e.target && e.target.tagName === 'INPUT') return;
+  // Don't restart from the menu screen
+  const menuOpen = !document.getElementById('menu').classList.contains('hidden');
+  if (k === 'r' && !menuOpen) { reset(); }
+  if (k === 'm' && !menuOpen) { showMenu(); }
   if (k === 'h') {
     const ov = document.getElementById('helpOverlay');
     ov.style.display = ov.style.display === 'none' ? 'block' : 'none';
